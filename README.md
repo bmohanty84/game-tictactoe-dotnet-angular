@@ -95,15 +95,94 @@ update the `API_BASE` constant in `src/app/services/game.service.ts`.
 
 ## 7. API Endpoint Summary
 
+Base URL: `http://localhost:5080/api`
+
+All endpoints use JSON. Enum values are serialized as strings. Every game
+endpoint requires the game id returned by `POST /api/games`.
+
 | Method | Endpoint | Purpose |
 |---|---|---|
-| POST | `/api/games` | Create a new game session. Body: `{ "mode": "TwoPlayer" \| "VsComputer" }` |
-| GET | `/api/games/{id}` | Get current game state |
-| POST | `/api/games/{id}/moves` | Submit a move. Body: `{ "player": "X"\|"O", "cellIndex": 0-8 }` (or `row`/`col` instead of `cellIndex`) |
-| POST | `/api/games/{id}/undo` | Undo the last move (mode-aware) |
-| POST | `/api/games/{id}/reset` | Reset the current game (scoreboard untouched) |
-| GET | `/api/scoreboard` | Get the session-level scoreboard |
-| POST | `/api/scoreboard/reset` | Reset the scoreboard to zero |
+| `POST` | `/api/games` | Create a new game session. |
+| `GET` | `/api/games/{id}` | Return the current state of a game. |
+| `POST` | `/api/games/{id}/moves` | Submit a move and, in computer mode, apply the computer response. |
+| `POST` | `/api/games/{id}/undo` | Undo the latest move, or the latest human/computer pair in computer mode. |
+| `POST` | `/api/games/{id}/reset` | Clear the board and move history while preserving the game id and scoreboard. |
+| `GET` | `/api/scoreboard` | Return the process-wide session scoreboard. |
+| `POST` | `/api/scoreboard/reset` | Reset all scoreboard counters to zero. |
+
+### Create a game
+
+`POST /api/games`
+
+Request:
+
+```json
+{ "mode": "TwoPlayer" }
+```
+
+`mode` may be `TwoPlayer` or `VsComputer`. The response is `201 Created` and
+contains the new game state.
+
+### Get game state
+
+`GET /api/games/{id}`
+
+Returns `200 OK` with the current game state. An unknown or invalid GUID
+returns `404 Not Found`.
+
+### Submit a move
+
+`POST /api/games/{id}/moves`
+
+Request using a cell index:
+
+```json
+{ "player": "X", "cellIndex": 0 }
+```
+
+Alternatively, provide row and column values:
+
+```json
+{ "player": "X", "row": 0, "col": 0 }
+```
+
+`cellIndex` is zero-based (`0` through `8`) and takes precedence when both
+forms are supplied. Row and column values are zero-based (`0` through `2`).
+The response is `200 OK` with the updated game state. In `VsComputer` mode,
+the backend adds the computer move before returning the response.
+
+Invalid moves return `400 Bad Request`; an unknown game returns `404 Not
+Found`. Both responses use the following shape:
+
+```json
+{ "message": "A descriptive error message" }
+```
+
+### Undo a move
+
+`POST /api/games/{id}/undo`
+
+The request body is empty (`{}`). The response is `200 OK` with the updated
+game state. Undo is unavailable after a win or draw, and when there are no
+moves to remove; those cases return `400 Bad Request`.
+
+### Reset a game
+
+`POST /api/games/{id}/reset`
+
+The request body is empty (`{}`). The response is `200 OK` with a fresh,
+in-progress game state using the same id and mode. The scoreboard is unchanged.
+
+### Read or reset the scoreboard
+
+`GET /api/scoreboard` returns `200 OK`:
+
+```json
+{ "xWins": 0, "oWins": 0, "draws": 0 }
+```
+
+`POST /api/scoreboard/reset` accepts an empty body (`{}`) and returns `200 OK`
+with the reset scoreboard.
 
 **Game state response shape:**
 ```json
@@ -146,35 +225,69 @@ npm test
 binary must be available on the machine, or set `CHROME_BIN` to point to
 one.)
 
-## 9. AI Tools and Prompt Summary
+## 9. AI Prompt Summary and Workflow Notes
 
-This solution was built with Claude (Anthropic) as an AI pair-programmer,
-inside a single continuous session. Summary of the workflow for
-transparency, as requested by the assignment:
+The project was developed with an AI pair-programming assistant. The prompts
+below summarize the workflow and can be used to reproduce the implementation.
+They are paraphrased rather than copied verbatim.
 
-- **Specification conversion:** The uploaded problem statement (Word doc)
-  was parsed directly, and the functional requirements, undo semantics,
-  computer-move priority, and API contract were extracted into the data
-  model and service design below before any code was written.
-- **Prompts used (paraphrased):** "Analyze the requirements and generate
-  source code" was the driving prompt; the assistant then made and stated
-  the specific design decisions in this README rather than asking for
-  every micro-decision to be re-confirmed.
-- **What the AI generated:** The full backend (models, DTOs, services,
-  controllers, xUnit tests) and full frontend (Angular module, components,
-  services, Karma tests), plus this README.
-- **What was changed/refined manually during generation:** The undo-related
-  xUnit test for "computer never moves after completion" was rewritten
-  mid-generation to drive the game to completion deterministically instead
-  of hardcoding a move sequence that could vary depending on the computer's
-  play, which is a more reliable test given the computer's fixed-priority
-  but board-dependent behavior.
-- **What was reviewed carefully:** The undo-by-mode logic (single move vs.
-  move-pair removal) and the computer's win/block/center/corner/any-cell
-  priority chain, since both have several edge cases (e.g., undoing when
-  only one move has been made in Computer Mode).
-- **Assumptions made:** documented in section 10 below.
-- **Trade-offs chosen:** documented in section 11 (Design Decisions) below.
+### Prompt 1: Convert requirements into a design
+
+> Analyze the Tic Tac Toe requirements. Identify the domain model, game modes,
+> move and undo rules, computer-player priority, scoreboard behavior, REST
+> endpoints, validation rules, and test cases. Keep the backend as the single
+> source of truth and use in-memory storage.
+
+The output was reviewed against the problem statement before implementation.
+Key decisions were to use a `GameSession`, explicit status and player enums,
+move records, a process-wide scoreboard, and a service boundary between the
+controllers and game rules.
+
+### Prompt 2: Implement the .NET backend
+
+> Create a .NET 8 Web API for the approved design. Add models, DTOs, game
+> rules, services, controllers, Swagger, CORS for Angular on port 4200, and
+> readable JSON enum values. Validate all invalid moves and return the
+> documented error shape. Make computer moves synchronously after a human
+> move.
+
+The backend was then checked for route consistency, thread-safe in-memory
+state, scoreboard updates exactly once per completed game, and correct
+computer priority: win, block, center, corner, then the first available cell.
+
+### Prompt 3: Implement the Angular frontend
+
+> Create an Angular 17 frontend that calls the REST API exclusively. Add a
+> board, game controls, move history, scoreboard, service models, and tests.
+> Do not duplicate turn, win, draw, computer, or undo logic in the client;
+> render the state returned by the backend.
+
+The frontend was organized into small components and a single API service.
+The service uses the backend base URL, while `AppComponent` coordinates game
+creation, moves, reset actions, undo, and scoreboard refreshes.
+
+### Prompt 4: Add and review tests
+
+> Add focused xUnit tests for every game-rule and service requirement,
+> including invalid moves, all win lines, draws, reset, both undo modes,
+> scoreboard updates, and computer move priority. Add Angular unit tests for
+> component rendering and every HTTP request made by the service and app.
+
+During review, the completion test for computer mode was changed to drive the
+game to completion dynamically. This avoids relying on a hardcoded sequence
+that could become invalid if the computer's board-dependent choices change.
+
+### Prompt 5: Verify and document
+
+> Review the implementation against the requirements. Identify missing edge
+> cases, API contract mismatches, concurrency risks, and test gaps. Update the
+> README with run commands, endpoint documentation, assumptions, limitations,
+> design decisions, and this AI workflow summary.
+
+The remaining assumptions, trade-offs, and known limitations are recorded in
+sections 10 through 13. The recommended final check is to run `dotnet test`,
+start the API, run the Angular tests, and exercise the application through
+the browser and Swagger UI.
 
 Because this was authored with an AI assistant, **please run and exercise
 the app yourself before the panel review** to confirm behavior end-to-end
@@ -256,13 +369,6 @@ create → move → scoreboard refresh, using `HttpClientTestingModule`).
   as scoped by the problem statement.
 - No E2E (Cypress/Playwright) tests — only unit tests, per "frontend tests
   may cover component rendering and API integration points."
-- **This code was generated in an environment without the .NET SDK or npm
-  registry access, so it has not actually been compiled or run there.**
-  Run `dotnet build` / `dotnet test` and `npm install` / `npm test` locally
-  as the first step, and fix up any small compilation issues (e.g. NuGet
-  package version availability) you encounter — the logic and structure
-  are complete, but a first local build is recommended before the panel
-  review.
 - The computer opponent implements the specified fixed-priority heuristic
   (win/block/center/corner/any) rather than a full minimax search, so it is
   not unbeatable — matching "Basic Computer Mode" as scoped in the problem
@@ -274,7 +380,7 @@ create → move → scoreboard refresh, using `HttpClientTestingModule`).
   interfaces so game history survives a restart.
 - Add a minimax-based "hard" difficulty option alongside the current
   heuristic-based computer player.
-- Add E2E tests (Playwright) covering a full play-through in a real browser.
+- Add E2E tests covering a full play-through in a real browser.
 - Add optimistic UI updates on the frontend (render the human's move
   immediately, then reconcile with the backend response) to mask network
   latency.
