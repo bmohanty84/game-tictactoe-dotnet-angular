@@ -1,0 +1,16 @@
+# .NET
+backend/**/bin/
+backend/**/obj/
+*.user
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+
+# OS / IDE
+.vs/
+.vscode/
+.idea/
+.DS_Store

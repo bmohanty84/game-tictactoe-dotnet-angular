@@ -1,0 +1,37 @@
+<div class="controls-panel">
+  <div class="mode-select">
+    <label>
+      <input
+        type="radio"
+        name="mode"
+        [checked]="mode === 'TwoPlayer'"
+        (change)="onModeSelected('TwoPlayer')"
+      />
+      Two Player Mode
+    </label>
+    <label>
+      <input
+        type="radio"
+        name="mode"
+        [checked]="mode === 'VsComputer'"
+        (change)="onModeSelected('VsComputer')"
+      />
+      Play Against Computer
+    </label>
+  </div>
+
+  <div
+    class="status"
+    [class.won]="status === 'Won'"
+    [class.draw]="status === 'Draw'"
+  >
+    {{ statusMessage }}
+  </div>
+
+  <div class="action-buttons">
+    <button type="button" (click)="onUndo()" [disabled]="!canUndo">
+      Undo Last Move
+    </button>
+    <button type="button" (click)="onReset()">Reset Game</button>
+  </div>
+</div>

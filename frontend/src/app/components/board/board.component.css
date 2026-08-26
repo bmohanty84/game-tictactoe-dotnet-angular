@@ -1,0 +1,41 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 96px);
+  grid-template-rows: repeat(3, 96px);
+  gap: 8px;
+}
+
+.cell {
+  font-size: 2.5rem;
+  font-weight: 700;
+  border: 2px solid #cbd2d9;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f2933;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.cell:not(:disabled):hover {
+  background: #eef2ff;
+  transform: translateY(-1px);
+}
+
+.cell.occupied {
+  cursor: default;
+}
+
+.cell.winning {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+@media (max-width: 480px) {
+  .board {
+    grid-template-columns: repeat(3, 78px);
+    grid-template-rows: repeat(3, 78px);
+  }
+}

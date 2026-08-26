@@ -1,0 +1,18 @@
+<div class="scoreboard-panel">
+  <h3>Scoreboard</h3>
+  <div class="tallies">
+    <div class="tally">
+      <span class="label">X Wins</span>
+      <span class="value">{{ scoreboard.xWins }}</span>
+    </div>
+    <div class="tally">
+      <span class="label">O Wins</span>
+      <span class="value">{{ scoreboard.oWins }}</span>
+    </div>
+    <div class="tally">
+      <span class="label">Draws</span>
+      <span class="value">{{ scoreboard.draws }}</span>
+    </div>
+  </div>
+  <button type="button" class="reset-btn" (click)="onReset()">Reset Scoreboard</button>
+</div>

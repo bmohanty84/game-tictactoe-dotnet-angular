@@ -1,0 +1,14 @@
+<div class="board" role="grid" aria-label="Tic Tac Toe board">
+  <button
+    *ngFor="let cell of board; let i = index"
+    type="button"
+    class="cell"
+    [class.winning]="isWinningCell(i)"
+    [class.occupied]="cell !== null"
+    [disabled]="!interactive || cell !== null"
+    (click)="onCellClick(i)"
+    [attr.aria-label]="'Row ' + rowOf(i) + ' Column ' + colOf(i)"
+  >
+    {{ cell }}
+  </button>
+</div>

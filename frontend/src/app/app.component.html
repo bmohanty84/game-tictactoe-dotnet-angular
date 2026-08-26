@@ -1,0 +1,37 @@
+<div class="page">
+  <header>
+    <h1>Tic Tac Toe</h1>
+  </header>
+
+  <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+  <div class="layout" *ngIf="game as g">
+    <div class="board-column">
+      <app-board
+        [board]="g.board"
+        [winningCells]="g.winningCells"
+        [interactive]="g.status === 'InProgress'"
+        (cellClicked)="onCellClicked($event)"
+      ></app-board>
+    </div>
+
+    <div class="side-column">
+      <app-game-controls
+        [mode]="g.mode"
+        [status]="g.status"
+        [currentPlayer]="g.currentPlayer"
+        [winner]="g.winner"
+        [canUndo]="g.canUndo"
+        (modeChange)="onModeChange($event)"
+        (undo)="onUndo()"
+        (resetGame)="onResetGame()"
+      ></app-game-controls>
+
+      <app-scoreboard [scoreboard]="scoreboard" (resetScoreboard)="onResetScoreboard()"></app-scoreboard>
+
+      <app-move-history [moves]="g.moves"></app-move-history>
+    </div>
+  </div>
+
+  <p *ngIf="loading">Loading...</p>
+</div>
